@@ -26,3 +26,50 @@
     @apply bg-gym-gold text-black font-black uppercase tracking-wider hover:bg-gym-gold-light transition-colors rounded-lg;
   }
 }
+
+/* Gradiente radial animado */
+.bg-gradient-radial {
+  background: radial-gradient(circle at center, #6EC8E0, #1A4B8C, #0A1A3A);
+  background-size: 200% 200%;
+  animation: gradientMove 8s ease infinite;
+}
+
+@keyframes gradientMove {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+/* Animación de ondas SVG */
+.animate-wave {
+  animation: waveMove 10s linear infinite;
+}
+
+@keyframes waveMove {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Brillo deslizante (shimmer) */
+@keyframes shimmer {
+  50% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}

@@ -1,203 +1,206 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, Suspense } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Canvas } from '@react-three/fiber';
+import { User, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 import { login } from '../services/auth';
-import { Link } from 'react-router-dom';  
+import axios from 'axios';
+import GymScene from '../components/GymScene';
+import { useSound } from '../hooks/useSound';
 
-function Login() {
-    const [formData, setFormData] = useState({
-        username: '',
-        password: ''
-    });
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
-    const navigate = useNavigate();
+const Login = () => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
 
-    const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
+  const playHover = useSound('/sounds/hover.mp3', 0.15);
+  const playClick = useSound('/sounds/click.mp3', 0.2);
+  const playError = useSound('/sounds/error.mp3', 0.25);
+  const playSuccess = useSound('/sounds/success.mp3', 0.3);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      const data = await login(username, password);
+      const user = data.user;
+      const role = user?.role;
+      playSuccess();
+      setSuccess('Inicio de sesión exitoso. Redirigiendo...');
+      if (role === 'socio') {
+        const token = localStorage.getItem('access_token');
+        const profileRes = await axios.get('http://localhost:8000/api/profile/', {
+          headers: { Authorization: `Bearer ${token}` }
         });
-    };
+        const profile = profileRes.data;
+        const isComplete = profile.training_goal && profile.days_per_week && profile.experience_level && profile.session_duration;
+        setTimeout(() => {
+          if (isComplete) navigate('/socio/dashboard');
+          else navigate('/profile-setup');
+        }, 1000);
+      } else if (role === 'admin') {
+        setTimeout(() => navigate('/admin/machines'), 1000);
+      } else {
+        setTimeout(() => navigate('/dashboard'), 1000);
+      }
+    } catch (err) {
+      playError();
+      setError(err.error || 'Error al iniciar sesión');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
+  return (
+    <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#6EC8E0] via-[#1A4B8C] to-[#0A1A3A]">
+      {/* Fondo con brillo deslizante (shimmer) */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-[#6EC8E0]/20 to-transparent -translate-x-full animate-shimmer"></div>
+      </div>
 
-        try {
-            const data = await login(formData.username, formData.password);
-            console.log('Login exitoso:', data);
-            navigate('/dashboard');
-        } catch (err) {
-            setError(err.error || 'Error al iniciar sesión');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1A4B8C] to-[#6EC8E0] relative overflow-hidden">
-            <div className="absolute inset-0 opacity-10">
-                <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <pattern id="wave-pattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-                            <path d="M0 20 Q10 10, 20 20 T40 20" stroke="white" fill="none" strokeWidth="1" />
-                        </pattern>
-                    </defs>
-                    <rect x="0" y="0" width="100%" height="100%" fill="url(#wave-pattern)" />
-                </svg>
-            </div>
-
-            <div className="absolute top-20 left-10 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-20 right-10 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
-
-            <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-2xl shadow-2xl relative z-10">
-                <div>
-                    <div className="flex justify-center">
-                        <div className="h-24 w-24 bg-gradient-to-br from-[#1A4B8C] to-[#6EC8E0] rounded-2xl flex items-center justify-center shadow-lg">
-                            <span className="text-white text-3xl font-black">EG</span>
-                        </div>
-                    </div>
-                    <h2 className="mt-6 text-center text-4xl font-black text-[#1A4B8C]">
-                        ESSENTIAL<span className="text-[#6EC8E0]">GYM</span>
-                    </h2>
-                    <p className="mt-2 text-center text-sm text-gray-500 uppercase tracking-wider">
-                        Fitness Center
-                    </p>
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 min-h-screen">
+        {/* COLUMNA IZQUIERDA - Formulario redimensionado */}
+        <div className="flex items-center justify-center p-4 md:p-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="w-full max-w-md"
+          >
+            <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
+              <div className="p-5 md:p-6">
+                {/* Logo y título compactos */}
+                <div className="text-center mb-5">
+                  <motion.div
+                    initial={{ scale: 0.8 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2, type: 'spring' }}
+                    className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-tr from-[#1A4B8C] to-[#6EC8E0] shadow-lg mb-2"
+                  >
+                    <span className="text-white text-2xl font-black">EG</span>
+                  </motion.div>
+                  <h2 className="text-2xl font-black text-white">
+                    ESSENTIAL<span className="text-[#6EC8E0]">GYM</span>
+                  </h2>
+                  <p className="text-white/70 text-xs mt-1">Energía que transforma</p>
                 </div>
 
-                {/* Formulario */}
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    <div className="space-y-4">
-                        <div>
-                            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                                Usuario
-                            </label>
-                            <input
-                                id="username"
-                                name="username"
-                                type="text"
-                                autoComplete="username"
-                                required
-                                value={formData.username}
-                                onChange={handleChange}
-                                className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6EC8E0] focus:border-[#6EC8E0] focus:z-10 sm:text-sm"
-                                placeholder="Ingresa tu usuario"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                                Contraseña
-                            </label>
-                            <div className="relative">
-                                <input
-                                    id="password"
-                                    name="password"
-                                    type={showPassword ? "text" : "password"}
-                                    autoComplete="current-password"
-                                    required
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    className="appearance-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6EC8E0] focus:border-[#6EC8E0] focus:z-10 sm:text-sm pr-10"
-                                    placeholder="Ingresa tu contraseña"
-                                />
-                                <button
-                                    type="button"
-                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                >
-                                    {showPassword ? (
-                                        <svg className="h-5 w-5 text-[#6EC8E0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                    ) : (
-                                        <svg className="h-5 w-5 text-[#6EC8E0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                                        </svg>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Usuario */}
+                  <div>
+                    <label className="block text-white/80 text-xs font-medium mb-1">Usuario</label>
+                    <div className="relative group">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-4 h-4 group-focus-within:text-[#6EC8E0] transition-colors" />
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 bg-black/30 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-[#6EC8E0] focus:border-transparent text-sm"
+                        placeholder="Tu usuario"
+                        required
+                      />
                     </div>
+                  </div>
 
-                    {/* Mensaje de error */}
+                  {/* Contraseña */}
+                  <div>
+                    <label className="block text-white/80 text-xs font-medium mb-1">Contraseña</label>
+                    <div className="relative group">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-4 h-4 group-focus-within:text-[#6EC8E0] transition-colors" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full pl-9 pr-9 py-2 bg-black/30 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-[#6EC8E0] focus:border-transparent text-sm"
+                        placeholder="Tu contraseña"
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white transition"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mensajes de error/éxito */}
+                  <div className="min-h-[56px]">
                     {error && (
-                        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                            <div className="flex">
-                                <div className="flex-shrink-0">
-                                    <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                    </svg>
-                                </div>
-                                <div className="ml-3">
-                                    <p className="text-sm text-red-700">{error}</p>
-                                </div>
-                            </div>
-                        </div>
+                      <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="bg-red-500/20 backdrop-blur-sm border border-red-500/50 p-2 rounded-lg">
+                        <p className="text-red-200 font-semibold text-xs">{error}</p>
+                      </motion.div>
                     )}
+                    {success && (
+                      <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="bg-green-500/20 backdrop-blur-sm border border-green-500/50 p-2 rounded-lg">
+                        <p className="text-green-200 font-semibold text-xs">{success}</p>
+                      </motion.div>
+                    )}
+                  </div>
 
-                    {/* Opciones extras */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                            <input
-                                id="remember-me"
-                                name="remember-me"
-                                type="checkbox"
-                                className="h-4 w-4 text-[#6EC8E0] focus:ring-[#6EC8E0] border-gray-300 rounded"
-                            />
-                            <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                                Recordarme
-                            </label>
-                        </div>
+                  {/* Recordarme y registro */}
+                  <div className="flex items-center justify-between text-xs">
+                    <label className="flex items-center gap-1 text-white/70 cursor-pointer hover:text-white transition">
+                      <input type="checkbox" className="w-3 h-3 rounded border-white/30 bg-white/10 text-[#6EC8E0] focus:ring-[#6EC8E0]" />
+                      Recordarme
+                    </label>
+                    <Link to="/register" className="text-[#6EC8E0] hover:text-white transition font-medium">
+                      ¿No tienes cuenta? Regístrate
+                    </Link>
+                  </div>
 
-                        <div className="text-sm">
-                            <a href="#" className="font-medium text-[#1A4B8C] hover:text-[#6EC8E0] transition-colors">
-                                ¿Olvidaste tu contraseña?
-                            </a>
-                        </div>
-                    </div>
-
-                    {/* Botón de login */}
-                    <div>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-black uppercase tracking-wider rounded-lg text-white ${loading ? 'bg-gradient-to-r from-[#1A4B8C]/50 to-[#6EC8E0]/50' : 'bg-gradient-to-r from-[#1A4B8C] to-[#6EC8E0] hover:from-[#1A4B8C] hover:to-[#6EC8E0]'
-                                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#6EC8E0] transition-all duration-200`}
-                        >
-                            {loading ? (
-                                <>
-                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Iniciando...
-                                </>
-                            ) : (
-                                'Iniciar Sesión'
-                            )}
-                        </button>
-                    </div>
+                  {/* Botón login */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="submit"
+                    disabled={loading}
+                    onMouseEnter={playHover}
+                    onClick={playClick}
+                    className="relative w-full py-2 px-3 bg-gradient-to-r from-[#1A4B8C] to-[#6EC8E0] rounded-lg font-bold text-white shadow-md overflow-hidden group text-sm"
+                  >
+                    <span className="relative z-10 flex items-center justify-center gap-2">
+                      {loading ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <LogIn className="w-4 h-4" /> Iniciar Sesión
+                        </>
+                      )}
+                    </span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
+                  </motion.button>
                 </form>
 
-                <div className="text-center text-sm text-gray-500 mt-4">
-                    ¿No tienes una cuenta?{' '}
-                    <Link to="/register" className="text-[#1A4B8C] font-medium hover:text-[#6EC8E0] transition-colors">
-                        Regístrate aquí
-                    </Link>
+                <div className="mt-5 pt-4 text-center text-white/40 text-[10px] border-t border-white/10">
+                  © 2026 Essential Gym - Fitness Center
                 </div>
-
-                {/* Footer */}
-                <div className="text-center text-xs text-gray-500 border-t border-gray-200 pt-4">
-                    <p>© 2026 Essential Gym - Todos los derechos reservados</p>
-                    <p className="mt-1 text-[10px] text-[#6EC8E0]">FITNESS CENTER</p>
-                </div>
+              </div>
             </div>
+          </motion.div>
         </div>
-    );
-}
+
+        {/* COLUMNA DERECHA - Escena 3D */}
+        <div className="hidden md:block relative bg-gradient-to-br from-[#0A1A3A] to-[#1A4B8C] overflow-hidden">
+          <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
+            <Suspense fallback={null}>
+              <GymScene />
+            </Suspense>
+          </Canvas>
+          <div className="absolute bottom-8 left-0 right-0 text-center text-white/60 text-sm pointer-events-none">
+            <p>🏋️ Entrena con inteligencia artificial</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default Login;
