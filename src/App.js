@@ -1,3 +1,5 @@
+
+import './services/auth'; 
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
@@ -7,6 +9,7 @@ import { isAuthenticated, getCurrentUser } from './services/auth';
 import AdminMachines from './pages/AdminMachines';
 import ProfileSetup from './pages/ProfileSetup';
 import SocioDashboard from './pages/SocioDashboard';
+ 
 
 
 const PrivateRoute = ({ children, allowedRoles = [] }) => {
