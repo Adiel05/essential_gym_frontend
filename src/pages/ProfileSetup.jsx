@@ -1,15 +1,19 @@
 // src/pages/ProfileSetup.jsx
 import React, { useState, useEffect, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Canvas } from '@react-three/fiber';
 import { Float, Box, Sphere, OrbitControls } from '@react-three/drei';
-import { Target, Calendar, AlertCircle, BarChart2, Clock, ArrowRight, Volume2, VolumeX, User, Heart } from 'lucide-react';
+import {
+  Dumbbell, Flame, Activity, Heart, ChevronRight, ChevronLeft,
+  Volume2, VolumeX, User, AlertCircle, Calendar, Target, Clock,
+  Trophy, Zap, Shield, TrendingUp
+} from 'lucide-react';
 import axios from 'axios';
 import { useSound } from '../hooks/useSound';
 import { Howl } from 'howler';
 
-// Componente de fondo 3D
+// ========== COMPONENTE 3D DE FONDO ==========
 const GymBackground = () => {
   return (
     <Canvas camera={{ position: [0, 0, 6], fov: 50 }} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}>
@@ -33,6 +37,7 @@ const GymBackground = () => {
 
 const API_URL = 'http://localhost:8000/api/';
 
+// ========== COMPONENTE PRINCIPAL ==========
 const ProfileSetup = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -40,18 +45,21 @@ const ProfileSetup = () => {
   const [error, setError] = useState('');
   const [muted, setMuted] = useState(false);
   const backgroundMusic = React.useRef(null);
+  const [step, setStep] = useState(1);
+  const totalSteps = 4;
   const [formData, setFormData] = useState({
-    // Entrenamiento
-    training_goal: '',
-    days_per_week: '',
-    injuries: '',
-    experience_level: '',
-    session_duration: '',
     // Datos personales
     gender: '',
     age: '',
     weight: '',
     height: '',
+    // Objetivos y disponibilidad
+    training_goal: '',
+    days_per_week: '',
+    experience_level: '',
+    session_duration: '',
+    // Lesiones y condiciones
+    injuries: '',
     other_injuries: '',
     medical_conditions: '',
     surgeries: '',
@@ -64,12 +72,12 @@ const ProfileSetup = () => {
   const playError = useSound('/sounds/error.mp3', 0.25);
 
   const injuryOptions = [
-    { value: 'knees', label: 'Rodillas' },
-    { value: 'lower_back', label: 'Espalda baja' },
-    { value: 'shoulders', label: 'Hombros' },
-    { value: 'elbows', label: 'Codos' },
-    { value: 'wrists', label: 'Muñecas' },
-    { value: 'neck', label: 'Cuello' },
+    { value: 'knees', label: 'Rodillas', icon: '🦵' },
+    { value: 'lower_back', label: 'Espalda baja', icon: '🦴' },
+    { value: 'shoulders', label: 'Hombros', icon: '💪' },
+    { value: 'elbows', label: 'Codos', icon: '💢' },
+    { value: 'wrists', label: 'Muñecas', icon: '✋' },
+    { value: 'neck', label: 'Cuello', icon: '🧘' },
   ];
 
   useEffect(() => {
@@ -102,15 +110,15 @@ const ProfileSetup = () => {
     try {
       const res = await axios.get(`${API_URL}profile/`);
       setFormData({
-        training_goal: res.data.training_goal || '',
-        days_per_week: res.data.days_per_week || '',
-        injuries: res.data.injuries || '',
-        experience_level: res.data.experience_level || '',
-        session_duration: res.data.session_duration || '',
         gender: res.data.gender || '',
         age: res.data.age || '',
         weight: res.data.weight || '',
         height: res.data.height || '',
+        training_goal: res.data.training_goal || '',
+        days_per_week: res.data.days_per_week || '',
+        experience_level: res.data.experience_level || '',
+        session_duration: res.data.session_duration || '',
+        injuries: res.data.injuries || '',
         other_injuries: res.data.other_injuries || '',
         medical_conditions: res.data.medical_conditions || '',
         surgeries: res.data.surgeries || '',
@@ -130,21 +138,30 @@ const ProfileSetup = () => {
     const value = e.target.value;
     let currentInjuries = formData.injuries ? formData.injuries.split(',') : [];
     if (e.target.checked) {
-      if (!currentInjuries.includes(value)) {
-        currentInjuries.push(value);
-      }
+      if (!currentInjuries.includes(value)) currentInjuries.push(value);
     } else {
       currentInjuries = currentInjuries.filter(i => i !== value);
     }
     setFormData({ ...formData, injuries: currentInjuries.join(',') });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const isInjurySelected = (value) => {
+    return formData.injuries ? formData.injuries.split(',').includes(value) : false;
+  };
+
+  const handleSubmit = async () => {
+    console.log("🔵 handleSubmit ejecutado, paso actual:", step);
+    const token = localStorage.getItem('access_token');
+    console.log("Token:", token);
+    if (!token) {
+      console.error("No hay token, redirigiendo a login...");
+      navigate('/login');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
-      // Convertir números
+      const token = localStorage.getItem('access_token');
       const payload = {
         ...formData,
         age: formData.age ? parseInt(formData.age) : null,
@@ -153,8 +170,14 @@ const ProfileSetup = () => {
         days_per_week: formData.days_per_week ? parseInt(formData.days_per_week) : null,
         session_duration: formData.session_duration ? parseInt(formData.session_duration) : null,
       };
-      await axios.put(`${API_URL}profile/`, payload);
-      await axios.post(`${API_URL}training/generar-rutina/`);
+
+      await axios.put(`${API_URL}profile/`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      await axios.post(`${API_URL}training/generar-rutina/`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
       playSuccess();
       navigate('/socio/dashboard');
     } catch (err) {
@@ -166,8 +189,11 @@ const ProfileSetup = () => {
     }
   };
 
-  const isInjurySelected = (value) => {
-    return formData.injuries ? formData.injuries.split(',').includes(value) : false;
+  const nextStep = () => {
+    if (step < totalSteps) setStep(step + 1);
+  };
+  const prevStep = () => {
+    if (step > 1) setStep(step - 1);
   };
 
   if (loading) {
@@ -180,248 +206,222 @@ const ProfileSetup = () => {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#07122a] to-[#1A4B8C]">
-      {/* Fondo 3D */}
       <GymBackground />
-      
-      {/* Botón mute */}
-      <button 
-        onClick={toggleMute} 
-        className="fixed top-4 right-4 z-20 bg-white/10 backdrop-blur-md p-2 rounded-full text-white/70 hover:text-white transition"
-      >
+
+      <button onClick={toggleMute} className="fixed top-4 right-4 z-20 bg-white/10 backdrop-blur-md p-2 rounded-full text-white/70 hover:text-white transition">
         {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
       </button>
 
-      {/* Contenido principal */}
       <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }} 
-          animate={{ opacity: 1, y: 0 }} 
-          transition={{ duration: 0.6 }} 
-          className="w-full max-w-4xl"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-3xl">
           <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
+            {/* Header con progreso */}
             <div className="bg-gradient-to-r from-[#1A4B8C] to-[#6EC8E0] px-6 py-4">
-              <h1 className="text-xl font-bold text-white">Configura tu entrenamiento personalizado</h1>
-              <p className="text-white/80 text-sm mt-1">Complete todos los datos para generar una rutina profesional</p>
+              <div className="flex justify-between items-center mb-2">
+                <h1 className="text-xl font-bold text-white">Configura tu entrenamiento</h1>
+                <p className="text-white/80 text-sm">Paso {step} de {totalSteps}</p>
+              </div>
+              <div className="w-full bg-white/20 rounded-full h-2">
+                <div className="bg-white h-2 rounded-full transition-all duration-300" style={{ width: `${(step / totalSteps) * 100}%` }}></div>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 md:p-6 space-y-6">
-              {/* SECCIÓN 1: DATOS PERSONALES */}
-              <div>
-                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-                  <User size={18} /> Datos personales
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-white/80 text-xs font-medium mb-1">Género</label>
-                    <select 
-                      name="gender" 
-                      value={formData.gender} 
-                      onChange={handleChange} 
-                      className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white text-sm"
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="male">Hombre</option>
-                      <option value="female">Mujer</option>
-                      <option value="other">Otro</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-white/80 text-xs font-medium mb-1">Edad (años)</label>
-                    <input 
-                      type="number" 
-                      name="age" 
-                      value={formData.age} 
-                      onChange={handleChange} 
-                      className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white text-sm" 
-                      placeholder="Ej: 28" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-white/80 text-xs font-medium mb-1">Peso (kg)</label>
-                    <input 
-                      type="number" 
-                      step="0.1" 
-                      name="weight" 
-                      value={formData.weight} 
-                      onChange={handleChange} 
-                      className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white text-sm" 
-                      placeholder="Ej: 75.5" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-white/80 text-xs font-medium mb-1">Altura (cm)</label>
-                    <input 
-                      type="number" 
-                      step="1" 
-                      name="height" 
-                      value={formData.height} 
-                      onChange={handleChange} 
-                      className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white text-sm" 
-                      placeholder="Ej: 175" 
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SECCIÓN 2: OBJETIVOS Y DISPONIBILIDAD */}
-              <div>
-                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-                  <Target size={18} /> Objetivos y disponibilidad
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-white/80 text-xs font-medium mb-1">Objetivo principal</label>
-                    <select 
-                      name="training_goal" 
-                      value={formData.training_goal} 
-                      onChange={handleChange} 
-                      required 
-                      className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white text-sm"
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="hypertrophy">Hipertrofia (ganar músculo)</option>
-                      <option value="fat_loss">Pérdida de grasa</option>
-                      <option value="endurance">Resistencia</option>
-                      <option value="maintenance">Mantenimiento</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-white/80 text-xs font-medium mb-1">Días por semana</label>
-                    <select 
-                      name="days_per_week" 
-                      value={formData.days_per_week} 
-                      onChange={handleChange} 
-                      required 
-                      className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white text-sm"
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="2">2 días</option>
-                      <option value="3">3 días</option>
-                      <option value="4">4 días</option>
-                      <option value="5">5 días</option>
-                      <option value="6">6 días</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-white/80 text-xs font-medium mb-1">Nivel de experiencia</label>
-                    <select 
-                      name="experience_level" 
-                      value={formData.experience_level} 
-                      onChange={handleChange} 
-                      required 
-                      className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white text-sm"
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="beginner">Principiante (menos de 6 meses)</option>
-                      <option value="intermediate">Intermedio (6 meses - 2 años)</option>
-                      <option value="advanced">Avanzado (más de 2 años)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-white/80 text-xs font-medium mb-1">Duración por sesión</label>
-                    <select 
-                      name="session_duration" 
-                      value={formData.session_duration} 
-                      onChange={handleChange} 
-                      required 
-                      className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white text-sm"
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="30">30 minutos</option>
-                      <option value="45">45 minutos</option>
-                      <option value="60">60 minutos</option>
-                      <option value="90">90 minutos</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* SECCIÓN 3: LESIONES */}
-              <div>
-                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-                  <AlertCircle size={18} /> Lesiones o zonas problemáticas
-                </h3>
-                <div className="flex flex-wrap gap-4 mb-3">
-                  {injuryOptions.map(opt => (
-                    <label key={opt.value} className="flex items-center gap-2 text-white/80 text-sm">
-                      <input 
-                        type="checkbox" 
-                        value={opt.value} 
-                        checked={isInjurySelected(opt.value)} 
-                        onChange={handleInjuryChange} 
-                        className="w-4 h-4 rounded border-white/30 bg-white/10 text-[#6EC8E0]"
-                      />
-                      {opt.label}
-                    </label>
-                  ))}
-                </div>
-                <input 
-                  type="text" 
-                  name="other_injuries" 
-                  value={formData.other_injuries} 
-                  onChange={handleChange} 
-                  placeholder="Otras lesiones (especificar)" 
-                  className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white text-sm" 
-                />
-              </div>
-
-              {/* SECCIÓN 4: CONDICIONES MÉDICAS Y CIRUGÍAS */}
-              <div>
-                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-                  <Heart size={18} /> Condiciones médicas y cirugías
-                </h3>
-                <textarea 
-                  name="medical_conditions" 
-                  rows="2" 
-                  value={formData.medical_conditions} 
-                  onChange={handleChange} 
-                  placeholder="Enfermedades crónicas (hipertensión, diabetes, asma, problemas cardíacos, etc.)" 
-                  className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white text-sm" 
-                />
-                <textarea 
-                  name="surgeries" 
-                  rows="2" 
-                  value={formData.surgeries} 
-                  onChange={handleChange} 
-                  placeholder="Cirugías previas (ej. cirugía de rodilla 2021, apendicectomía...)" 
-                  className="w-full mt-3 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white text-sm" 
-                />
-              </div>
-
-              {/* Mensaje de error */}
-              {error && (
-                <div className="bg-red-500/20 border border-red-500/50 p-3 rounded-lg">
-                  <p className="text-red-200 text-sm">{error}</p>
-                </div>
-              )}
-
-              {/* Botón guardar */}
-              <div className="flex justify-end">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  type="submit"
-                  disabled={saving}
-                  onMouseEnter={playHover}
-                  onClick={playClick}
-                  className="bg-gradient-to-r from-[#1A4B8C] to-[#6EC8E0] text-white px-6 py-2 rounded-lg flex items-center gap-2 hover:shadow-lg transition-all text-sm"
-                >
-                  {saving ? (
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Guardando...
+            <form onSubmit={(e) => e.preventDefault()} className="p-6 space-y-6">
+              <AnimatePresence mode="wait">
+                {/* PASO 1: DATOS PERSONALES */}
+                {step === 1 && (
+                  <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                    {/* Género - tarjetas interactivas */}
+                    <div>
+                      <label className="block text-white font-medium mb-3">Género</label>
+                      <div className="grid grid-cols-2 gap-4">
+                        {['male', 'female'].map((opt) => (
+                          <motion.div
+                            key={opt}
+                            whileHover={{ scale: 1.03, y: -4 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => setFormData({ ...formData, gender: opt })}
+                            className={`cursor-pointer p-6 rounded-xl flex flex-col items-center gap-3 border-2 transition-all ${formData.gender === opt
+                              ? 'border-[#6EC8E0] bg-gradient-to-br from-[#6EC8E0]/30 to-[#1A4B8C]/30 shadow-xl'
+                              : 'border-white/20 bg-black/30 hover:border-white/40'
+                              }`}
+                          >
+                            <span className="text-6xl">{opt === 'male' ? '💪' : '🧘‍♀️'}</span>
+                            <span className="text-white font-semibold text-lg capitalize">
+                              {opt === 'male' ? 'Hombre' : 'Mujer'}
+                            </span>
+                          </motion.div>
+                        ))}
+                      </div>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      Guardar y continuar <ArrowRight size={16} />
+
+                    {/* Edad con slider */}
+                    <div>
+                      <label className="block text-white font-medium mb-2">Edad: <span className="text-[#6EC8E0] font-bold">{formData.age || 25}</span> años</label>
+                      <input type="range" min="15" max="100" value={formData.age || 25} onChange={(e) => setFormData({ ...formData, age: e.target.value })} className="w-full accent-[#6EC8E0]" />
+                      <div className="flex justify-between text-white/50 text-xs mt-1"><span>15</span><span>100</span></div>
                     </div>
-                  )}
-                </motion.button>
+
+                    {/* Peso con slider */}
+                    <div>
+                      <label className="block text-white font-medium mb-2">Peso: <span className="text-[#6EC8E0] font-bold">{formData.weight || 70}</span> kg</label>
+                      <input type="range" min="30" max="200" step="1" value={formData.weight || 70} onChange={(e) => setFormData({ ...formData, weight: e.target.value })} className="w-full accent-[#6EC8E0]" />
+                    </div>
+
+                    {/* Altura con slider */}
+                    <div>
+                      <label className="block text-white font-medium mb-2">Altura: <span className="text-[#6EC8E0] font-bold">{formData.height || 170}</span> cm</label>
+                      <input type="range" min="120" max="220" step="1" value={formData.height || 170} onChange={(e) => setFormData({ ...formData, height: e.target.value })} className="w-full accent-[#6EC8E0]" />
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* PASO 2: OBJETIVOS Y DISPONIBILIDAD */}
+                {step === 2 && (
+                  <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                    {/* Objetivo - tarjetas */}
+                    <div>
+                      <label className="block text-white font-medium mb-3">Objetivo principal</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { value: 'hypertrophy', label: 'Hipertrofia', icon: <Dumbbell />, desc: 'Ganar músculo' },
+                          { value: 'fat_loss', label: 'Pérdida grasa', icon: <Flame />, desc: 'Definición' },
+                          { value: 'endurance', label: 'Resistencia', icon: <Activity />, desc: 'Aguante' },
+                          { value: 'maintenance', label: 'Mantenimiento', icon: <Heart />, desc: 'Salud' }
+                        ].map(opt => (
+                          <motion.div key={opt.value} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setFormData({ ...formData, training_goal: opt.value })} className={`cursor-pointer p-3 rounded-xl border-2 transition-all ${formData.training_goal === opt.value ? 'border-[#6EC8E0] bg-[#6EC8E0]/20' : 'border-white/20 bg-black/30 hover:border-white/40'}`}>
+                            <div className="flex items-center gap-3">
+                              <div className="text-[#6EC8E0]">{opt.icon}</div>
+                              <div><div className="text-white font-medium">{opt.label}</div><div className="text-white/50 text-xs">{opt.desc}</div></div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Días por semana - círculos */}
+                    <div>
+                      <label className="block text-white font-medium mb-3">Días por semana</label>
+                      <div className="flex justify-between gap-2">
+                        {[2, 3, 4, 5, 6].map(day => (
+                          <motion.button key={day} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setFormData({ ...formData, days_per_week: day })} className={`w-12 h-12 rounded-full text-lg font-bold transition-all ${formData.days_per_week == day ? 'bg-gradient-to-r from-[#1A4B8C] to-[#6EC8E0] text-white shadow-lg' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>{day}</motion.button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Nivel experiencia - botones */}
+                    <div>
+                      <label className="block text-white font-medium mb-3">Nivel de experiencia</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { value: 'beginner', label: 'Principiante', icon: <Zap size={16} /> },
+                          { value: 'intermediate', label: 'Intermedio', icon: <TrendingUp size={16} /> },
+                          { value: 'advanced', label: 'Avanzado', icon: <Trophy size={16} /> }
+                        ].map(opt => (
+                          <motion.div key={opt.value} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setFormData({ ...formData, experience_level: opt.value })} className={`cursor-pointer p-2 rounded-xl text-center border-2 transition-all ${formData.experience_level === opt.value ? 'border-[#6EC8E0] bg-[#6EC8E0]/20' : 'border-white/20 bg-black/30'}`}>
+                            <div className="text-white text-xs">{opt.icon} {opt.label}</div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Duración sesión - selector horizontal */}
+                    <div>
+                      <label className="block text-white font-medium mb-3">Duración por sesión</label>
+                      <div className="flex gap-2">
+                        {[30, 45, 60, 90].map(min => (
+                          <motion.button key={min} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setFormData({ ...formData, session_duration: min })} className={`flex-1 py-2 rounded-lg border transition-all ${formData.session_duration == min ? 'bg-gradient-to-r from-[#1A4B8C] to-[#6EC8E0] text-white shadow-lg' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>{min} min</motion.button>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* PASO 3: LESIONES Y CONDICIONES */}
+                {step === 3 && (
+                  <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                    <div>
+                      <label className="block text-white font-medium mb-3">Lesiones o zonas problemáticas</label>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {injuryOptions.map(opt => (
+                          <motion.label key={opt.value} whileHover={{ scale: 1.02 }} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 cursor-pointer" style={{ background: isInjurySelected(opt.value) ? '#6EC8E0/20' : '' }}>
+                            <input type="checkbox" value={opt.value} checked={isInjurySelected(opt.value)} onChange={handleInjuryChange} className="w-4 h-4 accent-[#6EC8E0]" />
+                            <span className="text-white text-sm">{opt.icon} {opt.label}</span>
+                          </motion.label>
+                        ))}
+                      </div>
+                      <input type="text" name="other_injuries" value={formData.other_injuries} onChange={handleChange} placeholder="Otras lesiones (especificar)" className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white text-sm" />
+                    </div>
+
+                    <div>
+                      <label className="block text-white font-medium mb-2">Condiciones médicas crónicas</label>
+                      <textarea name="medical_conditions" rows="2" value={formData.medical_conditions} onChange={handleChange} placeholder="Ej. hipertensión, diabetes, asma..." className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white text-sm" />
+                    </div>
+
+                    <div>
+                      <label className="block text-white font-medium mb-2">Cirugías previas relevantes</label>
+                      <textarea name="surgeries" rows="2" value={formData.surgeries} onChange={handleChange} placeholder="Ej. cirugía de rodilla 2021..." className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-white text-sm" />
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* PASO 4: CONFIRMACIÓN Y GUARDADO */}
+                {step === 4 && (
+                  <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4 text-white">
+                    <h3 className="text-lg font-semibold">Resumen de tu perfil</h3>
+                    <div className="bg-white/10 p-4 rounded-xl space-y-2">
+                      <p><strong>Género:</strong> {formData.gender === 'male' ? 'Hombre' : formData.gender === 'female' ? 'Mujer' : formData.gender === 'other' ? 'Otro' : 'No especificado'}</p>
+                      <p><strong>Edad:</strong> {formData.age ? `${formData.age} años` : 'No especificada'}</p>
+                      <p><strong>Peso:</strong> {formData.weight ? `${formData.weight} kg` : 'No especificado'}</p>
+                      <p><strong>Altura:</strong> {formData.height ? `${formData.height} cm` : 'No especificada'}</p>
+                      <p><strong>Objetivo principal:</strong> {
+                        formData.training_goal === 'hypertrophy' ? 'Hipertrofia (ganar músculo)' :
+                          formData.training_goal === 'fat_loss' ? 'Pérdida de grasa' :
+                            formData.training_goal === 'endurance' ? 'Resistencia' :
+                              formData.training_goal === 'maintenance' ? 'Mantenimiento' : 'No especificado'
+                      }</p>
+                      <p><strong>Días por semana:</strong> {formData.days_per_week ? `${formData.days_per_week} días` : 'No especificado'}</p>
+                      <p><strong>Nivel de experiencia:</strong> {
+                        formData.experience_level === 'beginner' ? 'Principiante' :
+                          formData.experience_level === 'intermediate' ? 'Intermedio' :
+                            formData.experience_level === 'advanced' ? 'Avanzado' : 'No especificado'
+                      }</p>
+                      <p><strong>Duración por sesión:</strong> {formData.session_duration ? `${formData.session_duration} minutos` : 'No especificada'}</p>
+                      <p><strong>Lesiones seleccionadas:</strong> {
+                        formData.injuries ? formData.injuries.split(',').map(i => {
+                          const opt = injuryOptions.find(o => o.value === i);
+                          return opt ? opt.label : i;
+                        }).join(', ') : 'Ninguna'
+                      }</p>
+                      {formData.other_injuries && <p><strong>Otras lesiones:</strong> {formData.other_injuries}</p>}
+                      <p><strong>Condiciones médicas:</strong> {formData.medical_conditions || 'Ninguna'}</p>
+                      <p><strong>Cirugías previas:</strong> {formData.surgeries || 'Ninguna'}</p>
+                    </div>
+                    {error && <div className="bg-red-500/20 border border-red-500/50 p-3 rounded-lg text-red-200 text-sm">{error}</div>}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Navegación entre pasos */}
+              <div className="flex justify-between pt-4 border-t border-white/20">
+                {step > 1 && (
+                  <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={prevStep} className="bg-white/10 hover:bg-white/20 px-5 py-2 rounded-lg text-white flex items-center gap-2">
+                    <ChevronLeft size={16} /> Atrás
+                  </motion.button>
+                )}
+                {step < totalSteps ? (
+                  <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={nextStep} className="bg-gradient-to-r from-[#1A4B8C] to-[#6EC8E0] px-5 py-2 rounded-lg text-white flex items-center gap-2 ml-auto">
+                    Siguiente <ChevronRight size={16} />
+                  </motion.button>
+                ) : (
+                  <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleSubmit} disabled={saving} className="bg-gradient-to-r from-green-500 to-emerald-500 px-6 py-2 rounded-lg text-white font-bold flex items-center gap-2 ml-auto">
+                    {saving ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : 'Guardar y continuar'}
+                  </motion.button>
+                )}
               </div>
             </form>
 
-            <div className="px-5 pb-4 pt-2 text-center text-white/40 text-[10px] border-t border-white/10">
+            <div className="px-6 pb-4 pt-2 text-center text-white/40 text-xs border-t border-white/10">
               © 2026 Essential Gym - Fitness Center
             </div>
           </div>

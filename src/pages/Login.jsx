@@ -7,6 +7,7 @@ import { login } from '../services/auth';
 import axios from 'axios';
 import GymScene from '../components/GymScene';
 import { useSound } from '../hooks/useSound';
+import { Howl } from 'howler';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -40,6 +41,19 @@ const Login = () => {
         });
         const profile = profileRes.data;
         const isComplete = profile.training_goal && profile.days_per_week && profile.experience_level && profile.session_duration;
+
+        // Iniciar música de fondo (global) aprovechando la interacción del usuario
+        if (!window.__bgMusic) {
+          window.__bgMusic = new Howl({
+            src: ['/sounds/background.mp3'],
+            loop: true,
+            volume: 0.1,
+            autoplay: true,
+          });
+        } else {
+          if (!window.__bgMusic.playing()) window.__bgMusic.play();
+        }
+        
         setTimeout(() => {
           if (isComplete) navigate('/socio/dashboard');
           else navigate('/profile-setup');
