@@ -1,14 +1,221 @@
-import React, { useState, Suspense } from 'react';
+// src/pages/Login.jsx
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Canvas } from '@react-three/fiber';
-import { User, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
+import { OrbitControls, Float, Cylinder, Sphere, Torus } from '@react-three/drei';
+import { User, Lock, Eye, EyeOff, LogIn, Zap } from 'lucide-react';
 import { login } from '../services/auth';
 import axios from 'axios';
-import GymScene from '../components/GymScene';
 import { useSound } from '../hooks/useSound';
 import { Howl } from 'howler';
 
+// ========== ESTILOS GLOBALES (igual a tu versión) ==========
+const globalStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  .login-root {
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    width: 100%;
+    overflow: hidden;
+    background: #070f24;
+  }
+
+  .heading { font-family: 'Syne', sans-serif; }
+
+  .gym-input {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    color: white;
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.25s ease;
+    outline: none;
+  }
+  .gym-input::placeholder { color: rgba(255,255,255,0.3); }
+  .gym-input:focus {
+    border-color: rgba(110,200,224,0.6);
+    background: rgba(110,200,224,0.07);
+    box-shadow: 0 0 0 3px rgba(110,200,224,0.1);
+  }
+
+  .btn-login {
+    width: 100%;
+    background: linear-gradient(135deg, #1A4B8C 0%, #3a7bd5 50%, #6EC8E0 100%);
+    border: none;
+    border-radius: 14px;
+    color: white;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    box-shadow: 0 8px 32px rgba(110,200,224,0.25), 0 2px 8px rgba(0,0,0,0.3);
+    letter-spacing: 0.5px;
+  }
+  .btn-login::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s ease;
+  }
+  .btn-login:hover::before { left: 100%; }
+  .btn-login:hover {
+    box-shadow: 0 12px 40px rgba(110,200,224,0.4), 0 4px 16px rgba(0,0,0,0.3);
+    transform: translateY(-1px);
+  }
+  .btn-login:active { transform: translateY(0); }
+  .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  .login-card {
+    background: linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 28px;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(110,200,224,0.05), inset 0 1px 0 rgba(255,255,255,0.1);
+  }
+
+  .gym-label {
+    display: block;
+    color: rgba(255,255,255,0.55);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 7px;
+  }
+
+  .input-icon-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .input-icon {
+    position: absolute;
+    left: 14px;
+    color: rgba(255,255,255,0.3);
+    pointer-events: none;
+    transition: color 0.25s;
+    z-index: 1;
+  }
+  .input-icon-wrap:focus-within .input-icon { color: #6EC8E0; }
+
+  .gym-check { accent-color: #6EC8E0; width: 14px; height: 14px; cursor: pointer; }
+
+  @keyframes shimmerLogo {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.85; }
+  }
+  @keyframes pulseRing {
+    0% { transform: scale(1); opacity: 0.4; }
+    100% { transform: scale(1.6); opacity: 0; }
+  }
+`;
+
+// ========== ESCENA 3D INTERACTIVA (con flotación y controles) ==========
+const GymScene = () => {
+  return (
+    <>
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[3, 5, 2]} intensity={1.2} color="#ffffff" />
+      <pointLight position={[-2, 2, 3]} intensity={0.9} color="#6EC8E0" />
+      <pointLight position={[2, -1, 4]} intensity={0.7} color="#1A4B8C" />
+      <pointLight position={[0, 2, -3]} intensity={0.5} color="#E5B73B" />
+
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.2, 0]} receiveShadow>
+        <planeGeometry args={[6, 6]} />
+        <meshStandardMaterial color="#0a1a3a" metalness={0.8} roughness={0.4} transparent opacity={0.3} />
+      </mesh>
+
+      <Float speed={1.2} rotationIntensity={0.5} floatIntensity={0.5}>
+        <group position={[-1.5, 0.3, -0.8]} rotation={[0.3, 0.5, 0.2]}>
+          <Cylinder args={[0.12, 0.12, 1.6, 12]} rotation={[0, 0, Math.PI / 2]} castShadow>
+            <meshStandardMaterial color="#c0d0e0" metalness={0.9} roughness={0.2} />
+          </Cylinder>
+          {[-0.7, -0.85].map(x => (
+            <Cylinder key={x} args={[0.32, 0.32, 0.15, 24]} position={[x, 0, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+              <meshStandardMaterial color="#6EC8E0" metalness={0.7} roughness={0.3} />
+            </Cylinder>
+          ))}
+          {[0.7, 0.85].map(x => (
+            <Cylinder key={x} args={[0.32, 0.32, 0.15, 24]} position={[x, 0, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+              <meshStandardMaterial color="#6EC8E0" metalness={0.7} roughness={0.3} />
+            </Cylinder>
+          ))}
+        </group>
+      </Float>
+
+      <Float speed={0.9} rotationIntensity={0.4} floatIntensity={0.6}>
+        <group position={[1.8, -0.2, -0.3]} rotation={[-0.2, 0.8, 0.1]}>
+          <Sphere args={[0.55, 32, 32]} position={[0, -0.15, 0]} castShadow>
+            <meshStandardMaterial color="#2a4a7a" metalness={0.6} roughness={0.4} />
+          </Sphere>
+          <mesh position={[0, 0.45, 0]}>
+            <torusGeometry args={[0.35, 0.08, 16, 48]} />
+            <meshStandardMaterial color="#E5B73B" metalness={0.9} roughness={0.2} />
+          </mesh>
+        </group>
+      </Float>
+
+      <Float speed={0.7} rotationIntensity={0.3} floatIntensity={0.4}>
+        <group position={[0, -0.6, -1.5]} rotation={[0.1, 0.2, 0.05]}>
+          <Cylinder args={[0.09, 0.09, 3.2, 16]} rotation={[0, 0, Math.PI / 2]} castShadow>
+            <meshStandardMaterial color="#c0d0e0" metalness={0.9} roughness={0.2} />
+          </Cylinder>
+          {[-1.4, -1.6, -1.8].map(x => (
+            <Cylinder key={x} args={[0.28, 0.28, 0.12, 32]} position={[x, 0, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+              <meshStandardMaterial color="#1A4B8C" metalness={0.7} roughness={0.3} />
+            </Cylinder>
+          ))}
+          {[1.4, 1.6, 1.8].map(x => (
+            <Cylinder key={x} args={[0.28, 0.28, 0.12, 32]} position={[x, 0, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+              <meshStandardMaterial color="#1A4B8C" metalness={0.7} roughness={0.3} />
+            </Cylinder>
+          ))}
+        </group>
+      </Float>
+
+      <Float speed={1.1} rotationIntensity={0.6} floatIntensity={0.3}>
+        <group position={[-0.5, 0.6, -2]} rotation={[0.5, 0.8, 0.3]}>
+          <Cylinder args={[0.45, 0.45, 0.12, 32]} castShadow>
+            <meshStandardMaterial color="#E5B73B" metalness={0.8} roughness={0.3} />
+          </Cylinder>
+        </group>
+      </Float>
+
+      <Float speed={0.8} rotationIntensity={0.5} floatIntensity={0.5}>
+        <group position={[1.2, 0.1, -2.2]} rotation={[-0.3, 1.2, 0.4]}>
+          <Cylinder args={[0.5, 0.5, 0.1, 32]} castShadow>
+            <meshStandardMaterial color="#6EC8E0" metalness={0.7} roughness={0.3} />
+          </Cylinder>
+        </group>
+      </Float>
+
+      {[...Array(80)].map((_, i) => (
+        <Float key={i} speed={0.3 + Math.random() * 0.8} floatIntensity={0.2 + Math.random() * 0.5}>
+          <mesh position={[(Math.random() - 0.5) * 5, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 5 - 1]}>
+            <sphereGeometry args={[0.04, 8, 8]} />
+            <meshStandardMaterial color="#6EC8E0" emissive="#1A4B8C" emissiveIntensity={0.4} />
+          </mesh>
+        </Float>
+      ))}
+
+      <OrbitControls enableZoom={true} enablePan={true} zoomSpeed={1.2} rotateSpeed={1.0} target={[0, 0, 0]} />
+    </>
+  );
+};
+
+// ========== COMPONENTE LOGIN (con diseño de columnas y escena 3D) ==========
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -41,19 +248,11 @@ const Login = () => {
         });
         const profile = profileRes.data;
         const isComplete = profile.training_goal && profile.days_per_week && profile.experience_level && profile.session_duration;
-
-        // Iniciar música de fondo (global) aprovechando la interacción del usuario
         if (!window.__bgMusic) {
-          window.__bgMusic = new Howl({
-            src: ['/sounds/background.mp3'],
-            loop: true,
-            volume: 0.1,
-            autoplay: true,
-          });
+          window.__bgMusic = new Howl({ src: ['/sounds/background.mp3'], loop: true, volume: 0.1, autoplay: true });
         } else {
           if (!window.__bgMusic.playing()) window.__bgMusic.play();
         }
-        
         setTimeout(() => {
           if (isComplete) navigate('/socio/dashboard');
           else navigate('/profile-setup');
@@ -72,145 +271,214 @@ const Login = () => {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#6EC8E0] via-[#1A4B8C] to-[#0A1A3A]">
-      {/* Fondo con brillo deslizante (shimmer) */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-[#6EC8E0]/20 to-transparent -translate-x-full animate-shimmer"></div>
-      </div>
+    <div className="login-root" style={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden' }}>
+      <style>{globalStyles}</style>
 
-      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 min-h-screen">
-        {/* COLUMNA IZQUIERDA - Formulario redimensionado */}
-        <div className="flex items-center justify-center p-4 md:p-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="w-full max-w-md"
-          >
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
-              <div className="p-5 md:p-6">
-                {/* Logo y título compactos */}
-                <div className="text-center mb-5">
-                  <motion.div
-                    initial={{ scale: 0.8 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2, type: 'spring' }}
-                    className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-tr from-[#1A4B8C] to-[#6EC8E0] shadow-lg mb-2"
-                  >
-                    <span className="text-white text-2xl font-black">EG</span>
-                  </motion.div>
-                  <h2 className="text-2xl font-black text-white">
-                    ESSENTIAL<span className="text-[#6EC8E0]">GYM</span>
-                  </h2>
-                  <p className="text-white/70 text-xs mt-1">Energía que transforma</p>
-                </div>
+      {/* COLUMNA IZQUIERDA: FORMULARIO */}
+      <div style={{
+        width: '100%',
+        maxWidth: 460,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        padding: '20px 36px',
+        position: 'relative',
+        zIndex: 10,
+        backgroundColor: '#070f24',
+        height: '100%',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(160deg, #070f24 0%, #0a1a3a 80%, #070f24 100%)',
+          zIndex: -1
+        }} />
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: -1, opacity: 0.04,
+          backgroundImage: 'linear-gradient(rgba(110,200,224,1) 1px, transparent 1px), linear-gradient(90deg, rgba(110,200,224,1) 1px, transparent 1px)',
+          backgroundSize: '48px 48px'
+        }} />
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Usuario */}
-                  <div>
-                    <label className="block text-white/80 text-xs font-medium mb-1">Usuario</label>
-                    <div className="relative group">
-                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-4 h-4 group-focus-within:text-[#6EC8E0] transition-colors" />
-                      <input
-                        type="text"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 bg-black/30 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-[#6EC8E0] focus:border-transparent text-sm"
-                        placeholder="Tu usuario"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Contraseña */}
-                  <div>
-                    <label className="block text-white/80 text-xs font-medium mb-1">Contraseña</label>
-                    <div className="relative group">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-4 h-4 group-focus-within:text-[#6EC8E0] transition-colors" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full pl-9 pr-9 py-2 bg-black/30 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-[#6EC8E0] focus:border-transparent text-sm"
-                        placeholder="Tu contraseña"
-                        required
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white transition"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Mensajes de error/éxito */}
-                  <div className="min-h-[56px]">
-                    {error && (
-                      <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="bg-red-500/20 backdrop-blur-sm border border-red-500/50 p-2 rounded-lg">
-                        <p className="text-red-200 font-semibold text-xs">{error}</p>
-                      </motion.div>
-                    )}
-                    {success && (
-                      <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="bg-green-500/20 backdrop-blur-sm border border-green-500/50 p-2 rounded-lg">
-                        <p className="text-green-200 font-semibold text-xs">{success}</p>
-                      </motion.div>
-                    )}
-                  </div>
-
-                  {/* Recordarme y registro */}
-                  <div className="flex items-center justify-between text-xs">
-                    <label className="flex items-center gap-1 text-white/70 cursor-pointer hover:text-white transition">
-                      <input type="checkbox" className="w-3 h-3 rounded border-white/30 bg-white/10 text-[#6EC8E0] focus:ring-[#6EC8E0]" />
-                      Recordarme
-                    </label>
-                    <Link to="/register" className="text-[#6EC8E0] hover:text-white transition font-medium">
-                      ¿No tienes cuenta? Regístrate
-                    </Link>
-                  </div>
-
-                  {/* Botón login */}
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    type="submit"
-                    disabled={loading}
-                    onMouseEnter={playHover}
-                    onClick={playClick}
-                    className="relative w-full py-2 px-3 bg-gradient-to-r from-[#1A4B8C] to-[#6EC8E0] rounded-lg font-bold text-white shadow-md overflow-hidden group text-sm"
-                  >
-                    <span className="relative z-10 flex items-center justify-center gap-2">
-                      {loading ? (
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <LogIn className="w-4 h-4" /> Iniciar Sesión
-                        </>
-                      )}
-                    </span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
-                  </motion.button>
-                </form>
-
-                <div className="mt-5 pt-4 text-center text-white/40 text-[10px] border-t border-white/10">
-                  © 2026 Essential Gym - Fitness Center
-                </div>
+        <motion.div
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7 }}
+          style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}
+        >
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+              <div style={{
+                width: 48, height: 48,
+                background: 'linear-gradient(135deg, #1A4B8C, #6EC8E0)',
+                borderRadius: 14,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 8px 24px rgba(110,200,224,0.4)',
+                flexShrink: 0,
+                position: 'relative',
+                animation: 'shimmerLogo 3s ease-in-out infinite'
+              }}>
+                <div style={{
+                  position: 'absolute', inset: -6,
+                  borderRadius: 22,
+                  border: '1px solid rgba(110,200,224,0.4)',
+                  animation: 'pulseRing 2s ease-out infinite'
+                }} />
+                <span className="heading" style={{ color: 'white', fontSize: 18, fontWeight: 800 }}>EG</span>
+              </div>
+              <div>
+                <h1 className="heading" style={{ color: 'white', fontSize: 20, fontWeight: 800, letterSpacing: '-0.3px' }}>
+                  ESSENTIAL<span style={{ color: '#6EC8E0' }}>GYM</span>
+                </h1>
+                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                  Fitness · IA · Resultados
+                </p>
               </div>
             </div>
-          </motion.div>
-        </div>
-
-        {/* COLUMNA DERECHA - Escena 3D */}
-        <div className="hidden md:block relative bg-gradient-to-br from-[#0A1A3A] to-[#1A4B8C] overflow-hidden">
-          <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
-            <Suspense fallback={null}>
-              <GymScene />
-            </Suspense>
-          </Canvas>
-          <div className="absolute bottom-8 left-0 right-0 text-center text-white/60 text-sm pointer-events-none">
-            <p>🏋️ Entrena con inteligencia artificial</p>
           </div>
+
+          <div style={{ marginBottom: 24 }}>
+            <h2 className="heading" style={{ color: 'white', fontSize: 28, fontWeight: 800, marginBottom: 8 }}>
+              Bienvenido<br />
+              <span style={{ color: '#6EC8E0' }}>de vuelta</span> 🎉
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, lineHeight: 1.5 }}>
+              Accede a tu rutina personalizada con IA.
+            </p>
+          </div>
+
+          <div className="login-card" style={{ padding: '22px 24px' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label className="gym-label">Usuario</label>
+                <div className="input-icon-wrap">
+                  <User size={16} className="input-icon" style={{ left: 14 }} />
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    className="gym-input"
+                    style={{ padding: '11px 14px 11px 42px' }}
+                    placeholder="Tu nombre de usuario"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="gym-label">Contraseña</label>
+                <div className="input-icon-wrap">
+                  <Lock size={16} className="input-icon" style={{ left: 14 }} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="gym-input"
+                    style={{ padding: '11px 44px 11px 42px' }}
+                    placeholder="Tu contraseña"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute', right: 14,
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'rgba(255,255,255,0.4)',
+                    }}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}>
+                  <input type="checkbox" className="gym-check" /> Recordarme
+                </label>
+                <Link to="/register" style={{ color: '#6EC8E0', fontWeight: 600, textDecoration: 'none' }}>
+                  ¿Sin cuenta? Regístrate
+                </Link>
+              </div>
+
+              <AnimatePresence mode="wait">
+                {error && (
+                  <motion.div
+                    key="err"
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    style={{
+                      background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)',
+                      borderRadius: 12, padding: '9px 12px', color: '#fca5a5', fontSize: 12
+                    }}
+                  >
+                    ⚠️ {error}
+                  </motion.div>
+                )}
+                {success && (
+                  <motion.div
+                    key="ok"
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    style={{
+                      background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.4)',
+                      borderRadius: 12, padding: '9px 12px', color: '#86efac', fontSize: 12
+                    }}
+                  >
+                    ✅ {success}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <motion.button
+                type="submit"
+                disabled={loading}
+                className="btn-login"
+                style={{ padding: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                whileTap={{ scale: 0.98 }}
+                onMouseEnter={playHover}
+                onClick={playClick}
+              >
+                {loading ? (
+                  <div style={{ width: 18, height: 18, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                ) : (
+                  <>
+                    <LogIn size={18} /> Iniciar Sesión <Zap size={14} style={{ opacity: 0.8 }} />
+                  </>
+                )}
+              </motion.button>
+            </form>
+          </div>
+
+          <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, textAlign: 'center', marginTop: 20 }}>
+            © 2026 Essential Gym — Todos los derechos reservados
+          </p>
+        </motion.div>
+      </div>
+
+      {/* COLUMNA DERECHA: ESCENA 3D INTERACTIVA */}
+      <div style={{
+        flex: 1,
+        position: 'relative',
+        overflow: 'hidden',
+        display: 'none',
+      }}
+      className="right-panel"
+      >
+        <style>{`
+          @media (min-width: 992px) {
+            .right-panel { display: block !important; }
+          }
+        `}</style>
+        <Canvas camera={{ position: [0, 0, 4.5], fov: 45 }} style={{ width: '100%', height: '100%', background: 'transparent' }}>
+          <GymScene />
+        </Canvas>
+        <div style={{
+          position: 'absolute', bottom: 20, left: 0, right: 0, textAlign: 'center',
+          color: 'rgba(255,255,255,0.4)', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', zIndex: 10, pointerEvents: 'none'
+        }}>
+          🔥 Arrastra para rotar · Zoom con la rueda
         </div>
       </div>
     </div>

@@ -10,6 +10,9 @@ module.exports = {
         'gym-blue': '#1A4B8C',
         'gym-white': '#FFFFFF',
         'gym-gray-light': '#F5F7FA',
+        'gym-gold': '#C9A227',
+        'gym-gold-light': '#E5B73B',
+        'gym-dark': '#1A1A1A',
       },
       fontFamily: {
         'sans': ['Inter', 'system-ui', 'sans-serif'],

@@ -1,5 +1,5 @@
 
-import './services/auth'; 
+import './services/auth';
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
@@ -9,7 +9,8 @@ import { isAuthenticated, getCurrentUser } from './services/auth';
 import AdminMachines from './pages/AdminMachines';
 import ProfileSetup from './pages/ProfileSetup';
 import SocioDashboard from './pages/SocioDashboard';
- 
+import ExercisesLibrary from './pages/ExercisesLibrary';
+import TrainingHistory from './pages/TrainingHistory';
 
 
 const PrivateRoute = ({ children, allowedRoles = [] }) => {
@@ -72,6 +73,9 @@ function App() {
           }
         />
 
+        <Route path="/exercises" element={<PrivateRoute><ExercisesLibrary /></PrivateRoute>} />
+
+        <Route path="/history" element={<PrivateRoute><TrainingHistory /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   );
