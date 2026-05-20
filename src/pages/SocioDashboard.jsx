@@ -6,7 +6,7 @@ import { Canvas } from '@react-three/fiber';
 import { Float, Box, Sphere, OrbitControls, TorusKnot } from '@react-three/drei';
 import {
   Dumbbell, CheckCircle, Volume2, VolumeX, Award, Flame, Zap, Target, Heart, Activity, ChevronRight,
-  Trophy, Clock, RefreshCw, ChevronLeft, BarChart2, LogOut, User, Calendar
+  Trophy, Clock, RefreshCw, ChevronLeft, BarChart2, LogOut, User, Calendar, Camera
 } from 'lucide-react';
 import axios from 'axios';
 import { getCurrentUser, logout } from '../services/auth';
@@ -315,7 +315,7 @@ const GymBackground3D = () => {
 };
 
 // ========== EXERCISE CARD ==========
-const ExerciseCard = ({ ej, idx, completado, onComplete, onOpenDetail, onAlt, playHover }) => {
+const ExerciseCard = ({ ej, idx, completado, onComplete, onOpenDetail, onAlt, onOpenCorrector, playHover }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
@@ -571,6 +571,12 @@ const SocioDashboard = () => {
     } else { closeDetailModal(); }
   };
 
+  const handleOpenCorrectorFromModal = () => {
+    if (selectedExerciseDetail) {
+      navigate(`/corrector?exerciseName=${encodeURIComponent(selectedExerciseDetail.exercise_name)}&exerciseId=${selectedExerciseDetail.exercise_id}`);
+    }
+  };
+
   const fetchAlternatives = async (exercise) => {
     try {
       const token = localStorage.getItem('access_token');
@@ -804,6 +810,7 @@ const SocioDashboard = () => {
                   onComplete={handleComplete}
                   onOpenDetail={openExerciseDetail}
                   onAlt={fetchAlternatives}
+                  onOpenCorrector={() => navigate(`/corrector?exerciseName=${encodeURIComponent(ej.exercise_name)}&exerciseId=${ej.exercise_id}`)}
                   playHover={playHover}
                 />
               ))}
@@ -966,15 +973,29 @@ const SocioDashboard = () => {
 
                   {/* Navigation buttons */}
                   <div style={{ display: 'flex', gap: 10, marginTop: 'auto' }}>
-                    <button onClick={closeDetailModal} style={{
-                      flex: 1, padding: '12px',
-                      background: 'rgba(255,255,255,0.07)',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      borderRadius: 14, color: 'white', fontSize: 14, cursor: 'pointer',
-                      fontFamily: 'DM Sans, sans-serif'
-                    }}>
-                      Cerrar
-                    </button>
+
+                    <motion.button
+                      whileTap={{ scale: 0.93 }}
+                      onClick={(e) => { e.stopPropagation(); handleOpenCorrectorFromModal(); }}
+                      title="Corregir técnica con IA"
+                      style={{
+                        background: 'rgba(110,200,224,0.15)',
+                        border: '1px solid rgba(110,200,224,0.3)',
+                        borderRadius: 10,
+                        color: '#6EC8E0',
+                        padding: '7px 10px',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontFamily: 'DM Sans, sans-serif',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <Camera size={13} /> Ayuda con la técnica
+                    </motion.button>
+
                     <motion.button
                       whileTap={{ scale: 0.97 }}
                       onClick={completeAndNext}
@@ -985,6 +1006,7 @@ const SocioDashboard = () => {
                         ? '▶ Siguiente ejercicio'
                         : '✔ Marcar y siguiente'}
                     </motion.button>
+
                   </div>
                 </div>
               </div>
