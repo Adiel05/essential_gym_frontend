@@ -11,6 +11,8 @@ import ProfileSetup from './pages/ProfileSetup';
 import SocioDashboard from './pages/SocioDashboard';
 import ExercisesLibrary from './pages/ExercisesLibrary';
 import TrainingHistory from './pages/TrainingHistory';
+import CorrectionStats from './pages/CorrectionStats';
+import ExerciseCorrector from './pages/ExerciseCorrector';
 
 
 const PrivateRoute = ({ children, allowedRoles = [] }) => {
@@ -76,6 +78,11 @@ function App() {
         <Route path="/exercises" element={<PrivateRoute><ExercisesLibrary /></PrivateRoute>} />
 
         <Route path="/history" element={<PrivateRoute><TrainingHistory /></PrivateRoute>} />
+
+        <Route path="/corrector" element={<PrivateRoute><ExerciseCorrector /></PrivateRoute>} />
+
+        <Route path="/correction-stats" element={<PrivateRoute><CorrectionStats /></PrivateRoute>} />
+
       </Routes>
     </BrowserRouter>
   );
